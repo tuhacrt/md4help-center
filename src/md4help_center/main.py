@@ -1,4 +1,4 @@
-"""md4help_center: A script to backup Zendesk Help Center articles to Markdown files."""
+"""script to fetch and backup Zendesk Help Center articles as Markdown files."""
 
 import csv
 import datetime
@@ -115,29 +115,26 @@ def main() -> None:
             print(f'Article ID {article["id"]} has no body, skipping.')
             continue
 
-        article_id = article['id']  # Used in log
-        article_title = article['title']
-        safe_article_title = sanitize_name(article_title)
-        article_url = article.get('html_url', 'URL_Not_Available')  # Used in log and MD
-
-        # Fetching labels/tags for the article from 'label_names'
+        article_id_val = article['id']
+        article_title_val = article['title']  # Keep original title for frontmatter
+        safe_article_title = sanitize_name(article_title_val)
+        article_url_val = article.get('html_url', 'URL_Not_Available')
         label_names = article.get('label_names', [])
-        tags_line = ''
-        if label_names:
-            tags_line = 'Tags: ' + ', '.join(label_names)
+        created_at_val = article.get('created_at', '')
+        updated_at_val = article.get('updated_at', '')
 
         section_id = article.get('section_id')
-        category_name = 'Uncategorized'
-        section_name = 'Uncategorized'
+        category_name_val = 'Uncategorized'  # Keep original (sanitized) names for frontmatter
+        section_name_val = 'Uncategorized'
 
         if section_id and section_id in section_map:
             section_info = section_map[section_id]
-            section_name = section_info['name']
+            section_name_val = section_info['name']  # This is already sanitized
             category_id = section_info.get('category_id')
             if category_id and category_id in category_map:
-                category_name = category_map[category_id]
+                category_name_val = category_map[category_id]  # This is already sanitized
 
-        article_folder_path = os.path.join(base_run_path, category_name, section_name)
+        article_folder_path = os.path.join(base_run_path, category_name_val, section_name_val)
         if not os.path.exists(article_folder_path):
             os.makedirs(article_folder_path)
 
@@ -145,14 +142,36 @@ def main() -> None:
         try:
             md_body = markdownify.markdownify(html_body, heading_style='ATX') if html_body else ''
         except Exception as e:  # noqa: BLE001
-            print(f"Error converting article ID {article_id} ('{article_title}') to Markdown: {e}")
+            print(f"Error converting article ID {article_id_val} ('{article_title_val}') to Markdown: {e}")
             md_body = 'Error during Markdown conversion.'
 
-        # Prepare Markdown content: Title, then Tags (if any), then body, then Source URL
-        md_content = f'# {article_title}\n\n'
-        if tags_line:  # Only add the tags line if there are any tags
-            md_content += f'{tags_line}\n\n'  # Add two newlines for separation before body
-        md_content += f'{md_body}\n\n---\nSource URL: {article_url}'
+        # --- Create YAML Frontmatter ---
+        frontmatter = '---\n'
+        frontmatter += f'title: "{article_title_val.replace('"', '\\"')}"\n'  # Escape quotes in title
+        frontmatter += f'article_id: {article_id_val}\n'
+        frontmatter += f'source_url: "{article_url_val}"\n'
+        frontmatter += f'category: "{category_name_val}"\n'
+        frontmatter += f'section: "{section_name_val}"\n'
+        if label_names:
+            frontmatter += 'tags: \n'
+
+            for tag in label_names:
+                frontmatter += f'  - "{tag.replace('"', '\\"')}"\n'  # Escape quotes in tags
+        else:
+            frontmatter += 'tags: []\n'  # Empty list if no tags
+        if created_at_val:
+            frontmatter += f'created_at: "{created_at_val}"\n'
+        if updated_at_val:
+            frontmatter += f'updated_at: "{updated_at_val}"\n'
+        frontmatter += '---\n\n'
+        # --- End Frontmatter ---
+
+        # Prepare Markdown content with frontmatter
+        # The H1 title in the body is good for readability and some processors,
+        # even if redundant with frontmatter.title.
+        md_content = frontmatter
+        md_content += f'# {article_title_val}\n\n'
+        md_content += f'{md_body}\n'
 
         base_filename = f'{safe_article_title}.md'
         filename_to_save = base_filename
@@ -167,17 +186,24 @@ def main() -> None:
         try:
             with open(filepath, mode='w', encoding='utf-8') as f:
                 f.write(md_content)
-            print(f'Copied: {category_name}/{section_name}/{filename_to_save}')
-            # Update log entry with article_id and article_url, remove author_id
-            log.append((article_id, category_name, section_name, filename_to_save, article_title, article_url))
+            print(f'Copied: {category_name_val}/{section_name_val}/{filename_to_save}')
+            log.append(
+                (
+                    article_id_val,
+                    category_name_val,
+                    section_name_val,
+                    filename_to_save,
+                    article_title_val,
+                    article_url_val,
+                )
+            )
         except Exception as e:  # noqa: BLE001
-            print(f"Error writing file for article ID {article_id} ('{article_title}'): {e}")
+            print(f"Error writing file for article ID {article_id_val} ('{article_title_val}'): {e}")
 
     log_filepath = os.path.join(base_run_path, '_log.csv')
     try:
         with open(log_filepath, mode='w', encoding='utf-8', newline='') as f:
             writer = csv.writer(f)
-            # Update log header
             writer.writerow(('Article ID', 'Category', 'Section', 'File', 'Title', 'Article URL'))
             writer.writerows(log)
         print(f'Log file created at {log_filepath}')
