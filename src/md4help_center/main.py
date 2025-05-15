@@ -1,3 +1,5 @@
+"""md4help_center: A script to backup Zendesk Help Center articles to Markdown files."""
+
 import csv
 import datetime
 import os
@@ -17,8 +19,8 @@ BACKUP_FOLDER = 'backups_md'
 LANGUAGE = 'en-us'
 
 
-# --- Helper function to sanitize names for paths/filenames ---
-def sanitize_name(name):
+def sanitize_name(name: str) -> str:
+    """Sanitize names to be safe for use in file paths and URLs."""
     if not name:
         return 'Unnamed'
     name = name.replace('/', '_').replace('\\', '_')
@@ -29,8 +31,8 @@ def sanitize_name(name):
     return safe_name
 
 
-def fetch_all_zendesk_data(endpoint, credentials):
-    """Helper to fetch all paginated data from a Zendesk endpoint."""
+def fetch_all_zendesk_data(endpoint: str, credentials: tuple) -> list:
+    """Fetch all paginated data from a Zendesk endpoint."""
     results = []
     current_endpoint = endpoint
     while current_endpoint:
@@ -58,8 +60,9 @@ def fetch_all_zendesk_data(endpoint, credentials):
     return results
 
 
-def main():
-    date_today = datetime.date.today()
+def main() -> None:
+    """Fetch and backup Zendesk Help Center articles."""
+    date_today = datetime.datetime.now(tz=datetime.UTC).date()
     base_run_path = os.path.join(BACKUP_FOLDER, str(date_today), LANGUAGE)
     if not os.path.exists(base_run_path):
         os.makedirs(base_run_path)
@@ -76,7 +79,7 @@ def main():
     except requests.exceptions.HTTPError as e:
         print(f'Failed to retrieve categories: {e}')
         return
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         print(f'An error occurred fetching categories: {e}')
         return
 
@@ -91,7 +94,7 @@ def main():
     except requests.exceptions.HTTPError as e:
         print(f'Failed to retrieve sections: {e}')
         return
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         print(f'An error occurred fetching sections: {e}')
         return
 
@@ -102,7 +105,7 @@ def main():
     except requests.exceptions.HTTPError as e:
         print(f'Failed to retrieve articles: {e}')
         return
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         print(f'An error occurred fetching articles: {e}')
         return
 
@@ -141,7 +144,7 @@ def main():
         html_body = article['body']
         try:
             md_body = markdownify.markdownify(html_body, heading_style='ATX') if html_body else ''
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             print(f"Error converting article ID {article_id} ('{article_title}') to Markdown: {e}")
             md_body = 'Error during Markdown conversion.'
 
@@ -167,7 +170,7 @@ def main():
             print(f'Copied: {category_name}/{section_name}/{filename_to_save}')
             # Update log entry with article_id and article_url, remove author_id
             log.append((article_id, category_name, section_name, filename_to_save, article_title, article_url))
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             print(f"Error writing file for article ID {article_id} ('{article_title}'): {e}")
 
     log_filepath = os.path.join(base_run_path, '_log.csv')
@@ -178,7 +181,7 @@ def main():
             writer.writerow(('Article ID', 'Category', 'Section', 'File', 'Title', 'Article URL'))
             writer.writerows(log)
         print(f'Log file created at {log_filepath}')
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         print(f'Error writing log file: {e}')
 
 

@@ -12,5 +12,5 @@ poetry install
 ## Usage
 
 ```bash
-poetry run python -m md4help-center
+poetry run md4help_center
 ```

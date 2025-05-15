@@ -5,7 +5,9 @@ description = "Make mds for LLMs from Zendesk help center"
 authors = ["tuhacrt <a067800497@gmail.com>"]
 license= "MIT"
 readme = "README.md"
-package-mode = false
+packages = [
+    { include = "md4help_center", from = "src" },
+]
 
 [tool.poetry.dependencies]
 python = "^3.13"
@@ -17,6 +19,9 @@ requests = "^2.32.3"
 ruff = "0.11.9"
 pre-commit = "^4.2.0"
 
+[tool.poetry.scripts]
+md4help_center = "md4help_center:main"
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
@@ -27,18 +32,58 @@ requires-python = ">=3.13" # for pyupgrade
 
 [tool.ruff] # https://docs.astral.sh/ruff/settings/#top-level
 line-length = 120
+show-fixes = true
 exclude = ["**/migrations/"]
+src = ["src"]
 
 [tool.ruff.lint] # https://docs.astral.sh/ruff/settings/#lint
 select = [
-    "E",  # pycodestyle errors
-    "W",  # pycodestyle warnings
-    "F",  # pyflakes
-    "I",  # isort
-    "UP",  # pyupgrade
+    "A",     # Builtins
+    "ANN",   # Annotations
+    "ARG",   # Unused arguments
+    "ASYNC", # Asynchronous code
+    "B",     # Bugbear
+    "BLE",   # Blind except
+    "C4",    # Comprehensions
+    "COM",   # Commas
+    "D1",    # Undocumented public elements
+    "D2",    # Docstring conventions
+    "D3",    # Triple double quotes
+    "D4",    # Docstring text format
+    "DTZ",   # Datetimes
+    "E",     # Errors
+    "EM",    # Error messages
+    "ERA",   # Commented-out code
+    "F",     # Pyflakes
+    "FBT",   # "Boolean trap"
+    "FIX",   # "FIXME"-comments
+    "G",     # Logging format
+    "I",     # Isort
+    "ICN",   # Import conventions
+    "INP",   # Disallow PEP-420 (Implicit namespace packages)
+    "LOG",   # Logging
+    "N",     # PEP-8 Naming
+    "PERF",  # Unnecessary performance costs
+    "PIE",   # Unnecessary code
+    "Q",     # Quotes
+    "RET",   # Return
+    "RUF",   # Ruff
+    "SIM",   # Code simplification
+    "T10",   # Debugger
+    # "T20",   # Print
+    "TCH",   # Type checking
+    "TD",    # "TODO"-comments
+    "TID",   # Tidy imports
+    "UP",    # Pyupgrade
+    "W",     # Warnings
 ]
 ignore = [
-    "E402",  # module level import not at top of file
+    "COM812",  # Missing trailing comma
+    "D203",    # One blank line before class docstring
+    "D212",    # Multi-line summary first line
+    "PLR0913", # Too many arguments
+    "Q000",    # Single quotes found but double quotes preferred
+    "Q003",    # Avoidable escaped quote
 ]
 
 [tool.ruff.format] # https://docs.astral.sh/ruff/settings/#format
