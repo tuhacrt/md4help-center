@@ -2,7 +2,8 @@
 name = "md4help-center"
 version = "0.1.0"
 description = "Make mds for LLMs from Zendesk help center"
-authors = ["Tuhacrt"]
+authors = ["tuhacrt <a067800497@gmail.com>"]
+license= "MIT"
 readme = "README.md"
 package-mode = false
 
@@ -12,10 +13,34 @@ markdownify = "^1.1.0"
 dotenv = "^0.9.9"
 requests = "^2.32.3"
 
-
 [tool.poetry.group.dev.dependencies]
 ruff = "0.11.9"
+pre-commit = "^4.2.0"
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+# Ruff configuration
+[project]
+requires-python = ">=3.13" # for pyupgrade
+
+[tool.ruff] # https://docs.astral.sh/ruff/settings/#top-level
+line-length = 120
+exclude = ["**/migrations/"]
+
+[tool.ruff.lint] # https://docs.astral.sh/ruff/settings/#lint
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
+    "UP",  # pyupgrade
+]
+ignore = [
+    "E402",  # module level import not at top of file
+]
+
+[tool.ruff.format] # https://docs.astral.sh/ruff/settings/#format
+quote-style = "single"
+# Ruff configuration end
