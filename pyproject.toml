@@ -1,35 +1,36 @@
-[tool.poetry]
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+[project]
 name = "md4help-center"
 version = "0.1.0"
 description = "Make mds for LLMs from Zendesk help center"
-authors = ["tuhacrt <a067800497@gmail.com>"]
-license= "MIT"
+authors = [
+    {name = "tuhacrt", email = "a067800497@gmail.com"},
+]
+license = {text = "MIT"}
 readme = "README.md"
-packages = [
-    { include = "md4help_center", from = "src" },
+requires-python = "<4.0,>=3.13"
+dependencies = [
+    "markdownify<2.0.0,>=1.1.0",
+    "dotenv<1.0.0,>=0.9.9",
+    "requests<3.0.0,>=2.32.3",
 ]
 
-[tool.poetry.dependencies]
-python = "^3.13"
-markdownify = "^1.1.0"
-dotenv = "^0.9.9"
-requests = "^2.32.3"
+[dependency-groups]
+dev = [
+    "ruff==0.11.9",
+    "pre-commit<5.0.0,>=4.2.0",
+]
 
-[tool.poetry.group.dev.dependencies]
-ruff = "0.11.9"
-pre-commit = "^4.2.0"
-
-[tool.poetry.scripts]
+[project.scripts]
 md4help_center = "md4help_center:main"
 
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+[tool.pdm.build]
+includes = ["src/md4help_center"]
 
 # Ruff configuration
-[project]
-requires-python = ">=3.13" # for pyupgrade
-
 [tool.ruff] # https://docs.astral.sh/ruff/settings/#top-level
 line-length = 120
 show-fixes = true

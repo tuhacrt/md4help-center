@@ -4,13 +4,16 @@ Make mds for LLMs from Zendesk help center
 
 ## Installation
 
+Recommended to use uv to manage packages and run scripts
+
 ```bash
-poetry use env # optional
-poetry install
+uv venv # optional
+uv sync
+source .venv/bin/activate
 ```
 
 ## Usage
 
 ```bash
-poetry run md4help_center
+uv run md4help_center
 ```
