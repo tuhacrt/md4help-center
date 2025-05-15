@@ -10,5 +10,5 @@ repos:
     rev: 0.7.3
     hooks:
       - id: uv-lock
-      - id: pip-compile
+      - id: pip-compile # update requirements.txt
         args: [pyproject.toml, -o, requirements.txt]

@@ -6,14 +6,10 @@ certifi==2025.4.26
     # via requests
 charset-normalizer==3.4.2
     # via requests
-dotenv==0.9.9
-    # via md4help-center (pyproject.toml)
 idna==3.10
     # via requests
 markdownify==1.1.0
     # via md4help-center (pyproject.toml)
-python-dotenv==1.1.0
-    # via dotenv
 requests==2.32.3
     # via md4help-center (pyproject.toml)
 six==1.17.0

@@ -14,18 +14,18 @@ readme = "README.md"
 requires-python = "<4.0,>=3.13"
 dependencies = [
     "markdownify<2.0.0,>=1.1.0",
-    "dotenv<1.0.0,>=0.9.9",
     "requests<3.0.0,>=2.32.3",
 ]
+
+[project.scripts]
+md4help_center = "md4help_center:main"
 
 [dependency-groups]
 dev = [
     "ruff==0.11.9",
     "pre-commit<5.0.0,>=4.2.0",
+    "dotenv>=0.9.9",
 ]
-
-[project.scripts]
-md4help_center = "md4help_center:main"
 
 [tool.pdm.build]
 includes = ["src/md4help_center"]
@@ -36,6 +36,9 @@ line-length = 120
 show-fixes = true
 exclude = ["**/migrations/"]
 src = ["src"]
+
+[tool.ruff.format] # https://docs.astral.sh/ruff/settings/#format
+quote-style = "single"
 
 [tool.ruff.lint] # https://docs.astral.sh/ruff/settings/#lint
 select = [
@@ -71,7 +74,7 @@ select = [
     "RUF",   # Ruff
     "SIM",   # Code simplification
     "T10",   # Debugger
-    # "T20",   # Print
+  # "T20",   # Print
     "TCH",   # Type checking
     "TD",    # "TODO"-comments
     "TID",   # Tidy imports
@@ -86,7 +89,4 @@ ignore = [
     "Q000",    # Single quotes found but double quotes preferred
     "Q003",    # Avoidable escaped quote
 ]
-
-[tool.ruff.format] # https://docs.astral.sh/ruff/settings/#format
-quote-style = "single"
 # Ruff configuration end
