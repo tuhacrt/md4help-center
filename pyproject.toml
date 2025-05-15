@@ -1,15 +1,15 @@
 [build-system]
-requires = ["pdm-backend"]
-build-backend = "pdm.backend"
+requires = ["uv_build>=0.7.3,<0.8.0"]
+build-backend = "uv_build"
 
 [project]
 name = "md4help-center"
 version = "0.1.0"
 description = "Make mds for LLMs from Zendesk help center"
 authors = [
-    {name = "tuhacrt", email = "a067800497@gmail.com"},
+    { name = "Tuhacrt", email = "a067800497@gmail.com" },
 ]
-license = {text = "MIT"}
+license = { text = "MIT" }
 readme = "README.md"
 requires-python = "<4.0,>=3.13"
 dependencies = [
@@ -18,7 +18,7 @@ dependencies = [
 ]
 
 [project.scripts]
-md4help_center = "md4help_center:main"
+md4help-center = "md4help_center:main"
 
 [dependency-groups]
 dev = [
@@ -27,8 +27,12 @@ dev = [
     "dotenv>=0.9.9",
 ]
 
-[tool.pdm.build]
-includes = ["src/md4help_center"]
+[tool.uv]
+package = true
+
+[[tool.uv.index]]
+name = "pypi"
+url = "https://pypi.org/simple"
 
 # Ruff configuration
 [tool.ruff] # https://docs.astral.sh/ruff/settings/#top-level

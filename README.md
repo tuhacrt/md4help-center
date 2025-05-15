@@ -15,5 +15,5 @@ source .venv/bin/activate
 ## Usage
 
 ```bash
-uv run md4help_center
+uv run md4help-center
 ```
