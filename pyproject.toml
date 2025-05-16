@@ -1,5 +1,5 @@
 [build-system]
-requires = ["uv_build>=0.7.3,<0.8.0"]
+requires = ["uv_build>=0.7.4,<0.8.0"]
 build-backend = "uv_build"
 
 [project]
@@ -22,7 +22,7 @@ md4help-center = "md4help_center:main"
 
 [dependency-groups]
 dev = [
-    "ruff==0.11.9",
+    "ruff>=0.11.10",
     "pre-commit<5.0.0,>=4.2.0",
     "dotenv>=0.9.9",
 ]
