@@ -1,3 +1,5 @@
+# Remember to run `pre-commit autoupdate` to update the hooks
+# and `pre-commit install` to install the hooks in your git repository
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.11.10
@@ -7,7 +9,7 @@ repos:
       - id: ruff-format
 
   - repo: https://github.com/astral-sh/uv-pre-commit
-    rev: 0.7.4
+    rev: 0.7.6
     hooks:
       - id: uv-lock
       - id: uv-export
