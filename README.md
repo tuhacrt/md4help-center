@@ -8,12 +8,12 @@ Recommended to use uv to manage packages and run scripts
 
 ```bash
 uv venv # optional
-uv sync
 source .venv/bin/activate
+uv sync
 ```
 
 ## Usage
 
 ```bash
-uv run md4help-center
+uv run md4help-center (--no-section)
 ```

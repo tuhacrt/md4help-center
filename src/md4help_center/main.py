@@ -1,12 +1,13 @@
 """script to fetch and backup Zendesk Help Center articles as Markdown files."""
 
+import argparse
 import csv
 import datetime
 import os
 import re
 
 import dotenv
-import markdownify
+import markdownify  # type: ignore
 import requests
 
 dotenv.load_dotenv()
@@ -62,6 +63,16 @@ def fetch_all_zendesk_data(endpoint: str, credentials: tuple) -> list:
 
 def main() -> None:
     """Fetch and backup Zendesk Help Center articles."""
+    # --- CLI Argument Parsing ---
+    parser = argparse.ArgumentParser(description='Fetch and backup Zendesk Help Center articles as Markdown files.')
+    parser.add_argument(
+        '--no-section',
+        action='store_true',
+        help='Place articles directly under category folders, without section subfolders.',
+    )
+    args = parser.parse_args()
+    # --- End CLI Argument Parsing ---
+
     date_today = datetime.datetime.now(tz=datetime.UTC).date()
     base_run_path = os.path.join(BACKUP_FOLDER, str(date_today), LANGUAGE)
     if not os.path.exists(base_run_path):
@@ -116,7 +127,7 @@ def main() -> None:
             continue
 
         article_id_val = article['id']
-        article_title_val = article['title']  # Keep original title for frontmatter
+        article_title_val = article['title']
         safe_article_title = sanitize_name(article_title_val)
         article_url_val = article.get('html_url', 'URL_Not_Available')
         label_names = article.get('label_names', [])
@@ -124,17 +135,26 @@ def main() -> None:
         updated_at_val = article.get('updated_at', '')
 
         section_id = article.get('section_id')
-        category_name_val = 'Uncategorized'  # Keep original (sanitized) names for frontmatter
-        section_name_val = 'Uncategorized'
+        category_name_val = 'Uncategorized'
+        section_name_val = 'Uncategorized'  # Still fetch section name for metadata
 
         if section_id and section_id in section_map:
             section_info = section_map[section_id]
-            section_name_val = section_info['name']  # This is already sanitized
+            section_name_val = section_info['name']
             category_id = section_info.get('category_id')
             if category_id and category_id in category_map:
-                category_name_val = category_map[category_id]  # This is already sanitized
+                category_name_val = category_map[category_id]
 
-        article_folder_path = os.path.join(base_run_path, category_name_val, section_name_val)
+        # --- Adjust article_folder_path based on --no-section flag ---
+        display_path_segment: str
+        if args.no_section:
+            article_folder_path = os.path.join(base_run_path, category_name_val)
+            display_path_segment = category_name_val
+        else:
+            article_folder_path = os.path.join(base_run_path, category_name_val, section_name_val)
+            display_path_segment = f'{category_name_val}/{section_name_val}'
+        # --- End path adjustment ---
+
         if not os.path.exists(article_folder_path):
             os.makedirs(article_folder_path)
 
@@ -145,30 +165,24 @@ def main() -> None:
             print(f"Error converting article ID {article_id_val} ('{article_title_val}') to Markdown: {e}")
             md_body = 'Error during Markdown conversion.'
 
-        # --- Create YAML Frontmatter ---
         frontmatter = '---\n'
-        frontmatter += f'title: "{article_title_val.replace('"', '\\"')}"\n'  # Escape quotes in title
+        frontmatter += f'title: "{article_title_val.replace('"', '\\"')}"\n'
         frontmatter += f'article_id: {article_id_val}\n'
         frontmatter += f'source_url: "{article_url_val}"\n'
         frontmatter += f'category: "{category_name_val}"\n'
-        frontmatter += f'section: "{section_name_val}"\n'
+        frontmatter += f'section: "{section_name_val}"\n'  # Section name still in frontmatter
         if label_names:
-            frontmatter += 'tags: \n'
-
+            frontmatter += 'tags:\n'
             for tag in label_names:
-                frontmatter += f'  - "{tag.replace('"', '\\"')}"\n'  # Escape quotes in tags
+                frontmatter += f'  - "{tag.replace('"', '\\"')}"\n'
         else:
-            frontmatter += 'tags: []\n'  # Empty list if no tags
+            frontmatter += 'tags: []\n'
         if created_at_val:
             frontmatter += f'created_at: "{created_at_val}"\n'
         if updated_at_val:
             frontmatter += f'updated_at: "{updated_at_val}"\n'
         frontmatter += '---\n\n'
-        # --- End Frontmatter ---
 
-        # Prepare Markdown content with frontmatter
-        # The H1 title in the body is good for readability and some processors,
-        # even if redundant with frontmatter.title.
         md_content = frontmatter
         md_content += f'# {article_title_val}\n\n'
         md_content += f'{md_body}\n'
@@ -186,12 +200,13 @@ def main() -> None:
         try:
             with open(filepath, mode='w', encoding='utf-8') as f:
                 f.write(md_content)
-            print(f'Copied: {category_name_val}/{section_name_val}/{filename_to_save}')
+            # Use display_path_segment for clearer print output
+            print(f'Copied: {display_path_segment}/{filename_to_save}')
             log.append(
                 (
                     article_id_val,
                     category_name_val,
-                    section_name_val,
+                    section_name_val,  # Section name is still logged
                     filename_to_save,
                     article_title_val,
                     article_url_val,
