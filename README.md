@@ -15,5 +15,5 @@ uv sync
 ## Usage
 
 ```bash
-uv run md4help-center (--no-section)
+uv run md4help-center [--no-section] [--ignore-file]
 ```

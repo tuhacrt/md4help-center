@@ -173,5 +173,8 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 
+# Ignored articles's json
+public/ignore.json5
+
 # Output files:
 backups_md/

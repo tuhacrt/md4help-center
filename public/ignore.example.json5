@@ -1,0 +1,5 @@
+{
+  category: [{ id: 123456, name: "Category to be ignored" }],
+  section: [],
+  article: [],
+}
