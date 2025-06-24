@@ -1,4 +1,4 @@
-"""script to fetch and backup Zendesk Help Center articles as Markdown files."""
+"""script to fetch and backup Zendesk Help Center articles and categories as Markdown files."""
 
 import argparse
 import csv
@@ -25,9 +25,14 @@ def sanitize_name(name: str) -> str:
     """Sanitize names to be safe for use in file paths and URLs."""
     if not name:
         return 'Unnamed'
-    name = name.replace('/', '_').replace('\\', '_')
-    safe_name = ''.join(c if c.isalnum() or c in (' ', '-', '_') else '_' for c in name).strip()
-    safe_name = re.sub(r'[_ ]+', '_', safe_name)
+    # Allow letters, numbers, spaces, hyphens, and underscores. Replace others with an underscore.
+    safe_name = name.strip()
+
+    # Collapse multiple spaces into a single space
+    safe_name = re.sub(r' +', ' ', safe_name)
+    # Collapse multiple underscores into a single underscore
+    safe_name = re.sub(r'_+', '_', safe_name)
+
     if not safe_name or safe_name == '_' or all(c == '_' for c in safe_name):
         return 'Sanitized_Content'
     return safe_name
@@ -74,11 +79,10 @@ def main() -> None:
         action='store_true',
         help='Place articles directly under category folders, without section subfolders.',
     )
-    # --- New argument for ignore file ---
     parser.add_argument(
         '--ignore-file',
         type=str,
-        default=None,  # Changed from default='ignore.json' to make it optional unless specified
+        default=None,
         help='Path to a JSON file specifying category_ids, section_ids, or article_ids to ignore.',
     )
     args = parser.parse_args()
@@ -88,13 +92,10 @@ def main() -> None:
         try:
             with open(args.ignore_file, encoding='utf-8') as f:
                 loaded_ignores = json5.load(f)
-
-                # Get lists of objects, default to empty list if key is missing
                 raw_cat_ignores = loaded_ignores.get('category', [])
                 raw_sec_ignores = loaded_ignores.get('section', [])
                 raw_art_ignores = loaded_ignores.get('article', [])
 
-                # Extract IDs, ensuring items are dicts and have an 'id' key
                 if isinstance(raw_cat_ignores, list):
                     ignore_config['ignore_category_ids'] = {
                         item['id'] for item in raw_cat_ignores if isinstance(item, dict) and 'id' in item
@@ -123,19 +124,12 @@ def main() -> None:
                 print(f'Ignoring section IDs: {sorted(ignore_config["ignore_section_ids"])}')
             if ignore_config['ignore_article_ids']:
                 print(f'Ignoring article IDs: {sorted(ignore_config["ignore_article_ids"])}')
-
         except FileNotFoundError:
             print(f"Warning: Ignore file '{args.ignore_file}' not found. Proceeding without ignoring specific items.")
-        except (json5.JSONDecodeError, ValueError) as e:  # Catching broader errors json5 might raise
-            print(
-                f"Warning: Error decoding ignore file '{args.ignore_file}'. "
-                f"Please ensure it's a valid JSON5/JSONC format. Error: {e}"
-            )
+        except (json5.JSONDecodeError, ValueError) as e:
+            print(f"Warning: Error decoding ignore file '{args.ignore_file}'. Error: {e}")
         except Exception as e:  # noqa: BLE001
-            print(
-                f"Warning: Could not load or parse ignore file '{args.ignore_file}': {e}. "
-                'Proceeding without specific ignores.'
-            )
+            print(f"Warning: Could not load or parse ignore file '{args.ignore_file}': {e}.")
 
     date_today = datetime.datetime.now(tz=datetime.UTC).date()
     base_run_path = os.path.join(BACKUP_FOLDER, str(date_today), LANGUAGE)
@@ -145,31 +139,31 @@ def main() -> None:
     log = []
     credentials = (f'{ZENDESK_USER_EMAIL}/token', ZENDESK_API_TOKEN)
     if not all([ZENDESK_USER_EMAIL, ZENDESK_API_TOKEN, ZENDESK_DOMAIN]):
-        print('Error: Zendesk credentials or domain not found in environment variables (.env file).')
-        print('Please ensure ZENDESK_TOKEN, ZENDESK_USER, and ZENDESK_DOMAIN are set.')
+        print('Error: Zendesk credentials not found. Please set ZENDESK_TOKEN, ZENDESK_USER, and ZENDESK_DOMAIN.')
         return
 
-    # --- Fetch and Filter Categories ---
+    # --- Fetch, Filter, and Backup Categories ---
     print('Fetching categories...')
     category_map = {}
-    kept_category_ids = set()
     try:
         categories_endpoint = f'{ZENDESK_SUBDOMAIN}/api/v2/help_center/{LANGUAGE.lower()}/categories.json'
         raw_categories_data = fetch_all_zendesk_data(categories_endpoint, credentials)
 
-        categories_data_filtered = []
-        for cat in raw_categories_data:
-            if cat['id'] in ignore_config['ignore_category_ids']:
-                print(f"Ignoring category: ID {cat['id']}, Name '{cat.get('name', 'N/A')}' (due to ignore file).")
-                continue
-            categories_data_filtered.append(cat)
+        categories_data_filtered = [
+            cat for cat in raw_categories_data if cat['id'] not in ignore_config['ignore_category_ids']
+        ]
 
-        category_map = {cat['id']: sanitize_name(cat['name']) for cat in categories_data_filtered}
+        # Process filtered categories: create pages and build the map for later use
+        for cat in categories_data_filtered:
+            sanitized_name = sanitize_name(cat['name'])
+            # Store details in the map for articles/sections to use
+            category_map[cat['id']] = {
+                'name': sanitized_name,
+                'original_name': cat['name'],
+            }
+
         kept_category_ids = set(category_map.keys())
-        print(f'Fetched {len(raw_categories_data)} categories, keeping {len(category_map)} after filtering.')
-    except requests.exceptions.HTTPError as e:
-        print(f'Failed to retrieve categories: {e}')
-        return
+        print(f'Fetched {len(raw_categories_data)} categories, keeping and backing up {len(category_map)}.')
     except Exception as e:  # noqa: BLE001
         print(f'An error occurred fetching categories: {e}')
         return
@@ -177,24 +171,15 @@ def main() -> None:
     # --- Fetch and Filter Sections ---
     print('Fetching sections...')
     section_map = {}
-    kept_section_ids = set()
     try:
         sections_endpoint = f'{ZENDESK_SUBDOMAIN}/api/v2/help_center/{LANGUAGE.lower()}/sections.json'
         raw_sections_data = fetch_all_zendesk_data(sections_endpoint, credentials)
 
-        sections_data_filtered = []
-        for sec in raw_sections_data:
-            if sec['id'] in ignore_config['ignore_section_ids']:
-                print(f"Ignoring section: ID {sec['id']}, Name '{sec.get('name', 'N/A')}' (due to ignore file).")
-                continue
-            if sec.get('category_id') not in kept_category_ids:
-                # This section's category was filtered out
-                print(
-                    f"Ignoring section: ID {sec['id']}, Name '{sec.get('name', 'N/A')}' "
-                    f'(its category ID {sec.get("category_id")} was ignored).'
-                )
-                continue
-            sections_data_filtered.append(sec)
+        sections_data_filtered = [
+            sec
+            for sec in raw_sections_data
+            if sec['id'] not in ignore_config['ignore_section_ids'] and sec.get('category_id') in kept_category_ids
+        ]
 
         section_map = {
             sec['id']: {'name': sanitize_name(sec['name']), 'category_id': sec['category_id']}
@@ -202,9 +187,6 @@ def main() -> None:
         }
         kept_section_ids = set(section_map.keys())
         print(f'Fetched {len(raw_sections_data)} sections, keeping {len(section_map)} after filtering.')
-    except requests.exceptions.HTTPError as e:
-        print(f'Failed to retrieve sections: {e}')
-        return
     except Exception as e:  # noqa: BLE001
         print(f'An error occurred fetching sections: {e}')
         return
@@ -216,33 +198,12 @@ def main() -> None:
         articles_endpoint = f'{ZENDESK_SUBDOMAIN}/api/v2/help_center/{LANGUAGE.lower()}/articles.json'
         raw_articles_data = fetch_all_zendesk_data(articles_endpoint, credentials)
 
-        articles_data_filtered = []
-        for art in raw_articles_data:
-            if art['id'] in ignore_config['ignore_article_ids']:
-                print(f"Ignoring article: ID {art['id']}, Title '{art.get('title', 'N/A')}' (due to ignore file).")
-                continue
-
-            article_section_id = art.get('section_id')
-            if article_section_id and article_section_id not in kept_section_ids:
-                # This article's section was filtered out (either directly or its category was)
-                print(
-                    f"Ignoring article: ID {art['id']}, Title '{art.get('title', 'N/A')}' "
-                    f'(its section ID {article_section_id} was ignored or belongs to an ignored category).'
-                )
-                continue
-            # If article_section_id is None, it means it's not in a section we're tracking (or truly has no section)
-            # If it has no section_id, but we want to process it, it will fall into "Uncategorized"
-            # The current logic: if section_id is None, it passes the filter.
-            # If an article with no section_id should still be mapped to a category, this needs more complex handling.
-            # However, Zendesk articles are typically expected to have a section_id.
-            articles_data_filtered.append(art)
-
-        all_articles = articles_data_filtered
+        all_articles = [
+            art
+            for art in raw_articles_data
+            if art['id'] not in ignore_config['ignore_article_ids'] and art.get('section_id') in kept_section_ids
+        ]
         print(f'Fetched {len(raw_articles_data)} articles, keeping {len(all_articles)} after filtering.')
-
-    except requests.exceptions.HTTPError as e:
-        print(f'Failed to retrieve articles: {e}')
-        return
     except Exception as e:  # noqa: BLE001
         print(f'An error occurred fetching articles: {e}')
         return
@@ -263,23 +224,16 @@ def main() -> None:
 
         section_id = article.get('section_id')
         category_name_val = 'Uncategorized'
-        section_name_val = 'Unsectioned'  # Default if no section or section not in map
+        section_name_val = 'Unsectioned'
 
         if section_id and section_id in section_map:
             section_info = section_map[section_id]
             section_name_val = section_info['name']
             category_id = section_info.get('category_id')
             if category_id and category_id in category_map:
-                category_name_val = category_map[category_id]
-            # If category_id is not in category_map, category_name_val remains 'Uncategorized'
-            # This can happen if a section somehow has a category_id that was not fetched/kept
-        elif section_id:  # Section ID exists but not in our kept map (should have been filtered already)
-            print(
-                f'Warning: Article ID {article_id_val} references section ID {section_id} '
-                "which was not processed. Placing in 'Uncategorized/Unsectioned'."
-            )
+                # MODIFIED: Get correct name from category_map object
+                category_name_val = category_map[category_id]['name']
 
-        display_path_segment: str
         if args.no_section:
             article_folder_path = os.path.join(base_run_path, category_name_val)
             display_path_segment = category_name_val
@@ -287,37 +241,23 @@ def main() -> None:
             article_folder_path = os.path.join(base_run_path, category_name_val, section_name_val)
             display_path_segment = f'{category_name_val}/{section_name_val}'
 
-        if not os.path.exists(article_folder_path):
-            os.makedirs(article_folder_path)
+        os.makedirs(article_folder_path, exist_ok=True)
 
         html_body = article['body']
-        try:
-            md_body = markdownify.markdownify(html_body, heading_style='ATX') if html_body else ''
-        except Exception as e:  # noqa: BLE001
-            print(f"Error converting article ID {article_id_val} ('{article_title_val}') to Markdown: {e}")
-            md_body = 'Error during Markdown conversion.'
+        md_body = markdownify.markdownify(html_body, heading_style='ATX') if html_body else ''
 
         frontmatter = '---\n'
-        frontmatter += f'title: "{article_title_val.replace('"', '\\"')}"\n'
+        frontmatter += f'title: "{article_title_val.replace('"', '"')}"\n'
         frontmatter += f'article_id: {article_id_val}\n'
         frontmatter += f'source_url: "{article_url_val}"\n'
-        frontmatter += f'category: "{category_name_val}"\n'
+        frontmatter += f'category: "{category_map.get(category_id, {}).get("original_name", "Uncategorized")}"\n'
         frontmatter += f'section: "{section_name_val}"\n'
-        if label_names:
-            frontmatter += 'tags:\n'
-            for tag in label_names:
-                frontmatter += f'  - "{tag.replace('"', '\\"')}"\n'
-        else:
-            frontmatter += 'tags: []\n'
-        if created_at_val:
-            frontmatter += f'created_at: "{created_at_val}"\n'
-        if updated_at_val:
-            frontmatter += f'updated_at: "{updated_at_val}"\n'
+        frontmatter += f'tags: {label_names if label_names else "[]"}\n'
+        frontmatter += f'created_at: "{created_at_val}"\n'
+        frontmatter += f'updated_at: "{updated_at_val}"\n'
         frontmatter += '---\n\n'
 
-        md_content = frontmatter
-        md_content += f'# {article_title_val}\n\n'  # Add H1 title from article title
-        md_content += f'{md_body}\n'
+        md_content = frontmatter + f'# {article_title_val}\n\n' + f'{md_body}\n'
 
         base_filename = f'{safe_article_title}.md'
         filename_to_save = base_filename
@@ -332,7 +272,7 @@ def main() -> None:
         try:
             with open(filepath, mode='w', encoding='utf-8') as f:
                 f.write(md_content)
-            print(f'Copied: {display_path_segment}/{filename_to_save}')
+            print(f'Copied article: {display_path_segment}/{filename_to_save}')
             log.append(
                 (
                     article_id_val,
