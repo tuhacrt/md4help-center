@@ -32,6 +32,8 @@ def sanitize_name(name: str) -> str:
     safe_name = re.sub(r' +', ' ', safe_name)
     # Collapse multiple underscores into a single underscore
     safe_name = re.sub(r'_+', '_', safe_name)
+    # Replace " into ', for dify compatibility
+    safe_name = safe_name.replace('"', "'")
 
     if not safe_name or safe_name == '_' or all(c == '_' for c in safe_name):
         return 'Sanitized_Content'
