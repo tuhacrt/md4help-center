@@ -1,0 +1,16 @@
+{
+  "singleQuote": true,
+  "tabWidth": 2,
+  "semi": true,
+  "printWidth": 120,
+  "trailingComma": "all",
+  "overrides": [
+    {
+      "files": "public/*.json5",
+      "options": {
+        "singleQuote": false,
+        "printWidth": 10000
+      }
+    }
+  ]
+}

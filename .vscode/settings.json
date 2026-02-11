@@ -7,6 +7,10 @@
     },
     "editor.defaultFormatter": "charliermarsh.ruff"
   },
+  "[json5]": {
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
   "ruff.enable": true,
   "ruff.organizeImports": true,
   "ruff.fixAll": true,

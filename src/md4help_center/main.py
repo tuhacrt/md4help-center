@@ -22,21 +22,26 @@ LANGUAGE = 'en-us'
 
 
 def sanitize_name(name: str) -> str:
-    """Sanitize names to be safe for use in file paths and URLs."""
+    """Sanitize names to be safe for use in file paths and URLs, preserving the '#' character."""
     if not name:
         return 'Unnamed'
-    # Allow letters, numbers, spaces, hyphens, and underscores. Replace others with an underscore.
+
+    # Start by stripping leading/trailing whitespace
     safe_name = name.strip()
 
-    # Collapse multiple spaces into a single space
-    safe_name = re.sub(r' +', ' ', safe_name)
-    # Collapse multiple underscores into a single underscore
-    safe_name = re.sub(r'_+', '_', safe_name)
-    # Replace " into ', for dify compatibility
-    safe_name = safe_name.replace('"', "'")
+    # Replace any character that is not a letter, number, hyphen, or hash with a single space
+    safe_name = re.sub(r'[^\w\-#]+', ' ', safe_name)
 
-    if not safe_name or safe_name == '_' or all(c == '_' for c in safe_name):
-        return 'Sanitized_Content'
+    # Replace multiple spaces with a single hyphen for readability
+    safe_name = re.sub(r'\s+', ' ', safe_name)
+
+    # Remove any leading or trailing hyphens that might have been created
+    safe_name = safe_name.strip('-').strip()
+
+    # If the name is empty after sanitization, return a default name
+    if not safe_name:
+        return 'Sanitized-Content'
+
     return safe_name
 
 
@@ -221,19 +226,26 @@ def main() -> None:
         safe_article_title = sanitize_name(article_title_val)
         article_url_val = article.get('html_url', 'URL_Not_Available')
         label_names = article.get('label_names', [])
-        created_at_val = article.get('created_at', '')
-        updated_at_val = article.get('updated_at', '')
+
+        # Check if the article title starts with # followed by numbers
+        match = re.match(r'^#(\d+)', article_title_val)
+        if match:
+            error_code = match.group(1)
+            new_tags = ['error', error_code, f'error {error_code}']
+            for tag in new_tags:
+                if tag not in label_names:
+                    label_names.append(tag)
 
         section_id = article.get('section_id')
         category_name_val = 'Uncategorized'
         section_name_val = 'Unsectioned'
+        category_id = None  # Initialize category_id
 
         if section_id and section_id in section_map:
             section_info = section_map[section_id]
             section_name_val = section_info['name']
             category_id = section_info.get('category_id')
             if category_id and category_id in category_map:
-                # MODIFIED: Get correct name from category_map object
                 category_name_val = category_map[category_id]['name']
 
         if args.no_section:
@@ -250,13 +262,10 @@ def main() -> None:
 
         frontmatter = '---\n'
         frontmatter += f'title: "{article_title_val.replace('"', '"')}"\n'
-        frontmatter += f'article_id: {article_id_val}\n'
         frontmatter += f'source_url: "{article_url_val}"\n'
         frontmatter += f'category: "{category_map.get(category_id, {}).get("original_name", "Uncategorized")}"\n'
         frontmatter += f'section: "{section_name_val}"\n'
         frontmatter += f'tags: {label_names if label_names else "[]"}\n'
-        frontmatter += f'created_at: "{created_at_val}"\n'
-        frontmatter += f'updated_at: "{updated_at_val}"\n'
         frontmatter += '---\n\n'
 
         md_content = frontmatter + f'# {article_title_val}\n\n' + f'{md_body}\n'
